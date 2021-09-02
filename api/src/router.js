@@ -1,7 +1,8 @@
-const {Router} = require('express');
+const { Router } = require('express');
 const multer = require('multer');
 const path = require('path');
 const photoPath = path.resolve(__dirname, '../../client/photo-viewer.html');
+const imageProcessor = require('./imageProcessor');
 
 const router = Router();
 
@@ -9,10 +10,10 @@ function filename(request, file, callback) {
   callback(null, file.originalname);
 }
 
-const storage = multer.diskStorage(new Object({
+const storage = multer.diskStorage({
   destination: 'api/uploads/',
-  filename: filename
-}));
+  filename
+});
 
 function fileFilter(request, file, callback) {
   if (file.mimetype !== 'image/png') {
@@ -23,21 +24,25 @@ function fileFilter(request, file, callback) {
   }
 }
 
-const upload = multer(new Object({
-  fileFilter: fileFilter,
-  storage: storage
-}));
+const upload = multer({
+  fileFilter,
+  storage
+});
 
-router.post('/upload', upload.single('photo'), (req, res) => {
+router.post('/upload', upload.single('photo'), async (req, res) => {
   if (req.fileValidationError) {
-    res.status(400).json(new Object({
+    res.status(400).json({
       error: req.fileValidationError
-    }));
-  } else {
-    res.status(201).json(new Object({
-      success: true
-    }));
+    });
   }
+  try {
+    await imageProcessor(req.file.filename);
+  } catch (err) {
+    throw (err);
+  }
+  return res.status(201).json({
+    success: true
+  });
 });
 
 router.get('/photo-viewer', (req, res) => {
